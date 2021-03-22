@@ -1,5 +1,8 @@
 package trie
 
+type PartAddCallback func(part string)
+type PartDelCallback func(part string)
+
 // PathTrie is a trie of paths with string keys and interface{} values.
 
 // PathTrie is a trie of string keys and interface{} values. Internal nodes
@@ -56,7 +59,7 @@ func (trie *PathTrie) Get(key string) interface{} {
 // if it replaces an existing value.
 // Note that internal nodes have nil values so a stored nil value will not
 // be distinguishable and will not be included in Walks.
-func (trie *PathTrie) Put(key string, value interface{}) bool {
+func (trie *PathTrie) Put(key string, value interface{}, cb PartAddCallback) bool {
 	node := trie
 	for part, i := trie.segmenter(key, 0); part != ""; part, i = trie.segmenter(key, i) {
 		child, _ := node.children[part]
@@ -66,6 +69,9 @@ func (trie *PathTrie) Put(key string, value interface{}) bool {
 			}
 			child = NewPathTrie()
 			node.children[part] = child
+			if nil != cb {
+				cb(part)
+			}
 		}
 		node = child
 	}
@@ -78,7 +84,7 @@ func (trie *PathTrie) Put(key string, value interface{}) bool {
 // Delete removes the value associated with the given key. Returns true if a
 // node was found for the given key. If the node or any of its ancestors
 // becomes childless as a result, it is removed from the trie.
-func (trie *PathTrie) Delete(key string) bool {
+func (trie *PathTrie) Delete(key string, cb PartDelCallback) bool {
 	var path []nodeStr // record ancestors to check later
 	node := trie
 	for part, i := trie.segmenter(key, 0); part != ""; part, i = trie.segmenter(key, i) {
@@ -98,6 +104,9 @@ func (trie *PathTrie) Delete(key string) bool {
 			parent := path[i].node
 			part := path[i].part
 			delete(parent.children, part)
+			if nil != cb {
+				cb(part)
+			}
 			if !parent.isLeaf() {
 				// parent has other children, stop
 				break
